@@ -1,12 +1,17 @@
 import CoursesDao from "./dao";
 import EnrollmentsDao from "../Enrollments/dao";
-export default function CourseRoutes(app, db) {
-  const dao = CoursesDao(db);
-  const enrollmentsDao = EnrollmentsDao(db);
-  const findAllCourses = (req, res) => {
-    res.json(dao.findAllCourses());
+export default function CourseRoutes(app) {
+  const dao = CoursesDao();
+  const enrollmentsDao = EnrollmentsDao();
+  const findAllCourses = async (req, res) => {
+    const courses = await dao.findAllCourses();
+    res.send(courses);
   };
-  const findCoursesForEnrolledUser = (req, res) => {
+  const findCourseById = async (req, res) => {
+    const course = await dao.findCourseById(req.params.courseId);
+    res.json(course);
+  };
+  const findCoursesForEnrolledUser = async (req, res) => {
     let { userId } = req.params;
     if (userId === "current") {
       const currentUser = req.session["currentUser"];
@@ -16,28 +21,33 @@ export default function CourseRoutes(app, db) {
       }
       userId = currentUser._id;
     }
-    res.json(dao.findCoursesForEnrolledUser(userId));
+    const courses = await enrollmentsDao.findCoursesForUser(userId);
+    res.json(courses);
   };
-  const createCourse = (req, res) => {
+  const createCourse = async (req, res) => {
+    const newCourse = await dao.createCourse(req.body);
     const currentUser = req.session["currentUser"];
-    const newCourse = dao.createCourse(req.body);
     if (currentUser) {
-      enrollmentsDao.enrollUserInCourse(currentUser._id, newCourse._id);
+      await enrollmentsDao.enrollUserInCourse(currentUser._id, newCourse._id);
     }
     res.json(newCourse);
   };
-  const deleteCourse = (req, res) => {
+  const deleteCourse = async (req, res) => {
     const { courseId } = req.params;
-    dao.deleteCourse(courseId);
-    res.sendStatus(200);
+    await enrollmentsDao.unenrollAllUsersFromCourse(courseId);
+    const status = await dao.deleteCourse(courseId);
+    res.send(status);
   };
-  const updateCourse = (req, res) => {
+  const updateCourse = async (req, res) => {
     const { courseId } = req.params;
-    res.json(dao.updateCourse(courseId, req.body));
+    const updated = await dao.updateCourse(courseId, req.body);
+    res.json(updated);
   };
   app.get("/api/courses", findAllCourses);
-  app.get("/api/users/:userId/courses", findCoursesForEnrolledUser);
+  app.post("/api/courses", createCourse);
   app.post("/api/users/current/courses", createCourse);
+  app.get("/api/courses/:courseId", findCourseById);
   app.delete("/api/courses/:courseId", deleteCourse);
   app.put("/api/courses/:courseId", updateCourse);
+  app.get("/api/users/:userId/courses", findCoursesForEnrolledUser);
 }

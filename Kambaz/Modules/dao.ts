@@ -1,20 +1,20 @@
+import model from "./model";
 import { v4 as uuidv4 } from "uuid";
-export default function ModulesDao(db) {
+export default function ModulesDao() {
   function findModulesForCourse(courseId) {
-    return db.modules.filter((module) => module.course === courseId);
+    return model.find({ course: courseId });
   }
   function createModule(module) {
-    const newModule = { ...module, _id: uuidv4() };
-    db.modules = [...db.modules, newModule];
-    return newModule;
+    const { _id, ...rest } = module;
+    const newModule = { ...rest, _id: uuidv4() };
+    return model.create(newModule);
   }
   function deleteModule(moduleId) {
-    db.modules = db.modules.filter((module) => module._id !== moduleId);
+    return model.deleteOne({ _id: moduleId });
   }
   function updateModule(moduleId, moduleUpdates) {
-    const module = db.modules.find((module) => module._id === moduleId);
-    Object.assign(module, moduleUpdates);
-    return module;
+    const { _id, ...updates } = moduleUpdates;
+    return model.findByIdAndUpdate(moduleId, { $set: updates }, { new: true });
   }
   return { findModulesForCourse, createModule, deleteModule, updateModule };
 }

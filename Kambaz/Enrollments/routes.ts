@@ -1,34 +1,35 @@
 import EnrollmentsDao from "./dao";
-export default function EnrollmentRoutes(app, db) {
-  const dao = EnrollmentsDao(db);
+export default function EnrollmentRoutes(app) {
+  const dao = EnrollmentsDao();
   const resolveUserId = (req, res) => {
-    let { userId } = req.params;
-    if (userId === "current") {
+    let { uid } = req.params;
+    if (uid === "current") {
       const currentUser = req.session["currentUser"];
       if (!currentUser) {
         res.sendStatus(401);
         return null;
       }
-      userId = currentUser._id;
+      uid = currentUser._id;
     }
-    return userId;
+    return uid;
   };
-  const enroll = (req, res) => {
-    const userId = resolveUserId(req, res);
-    if (!userId) return;
-    dao.enrollUserInCourse(userId, req.params.courseId);
-    res.sendStatus(200);
+  const enrollUserInCourse = async (req, res) => {
+    const uid = resolveUserId(req, res);
+    if (!uid) return;
+    const status = await dao.enrollUserInCourse(uid, req.params.cid);
+    res.send(status);
   };
-  const unenroll = (req, res) => {
-    const userId = resolveUserId(req, res);
-    if (!userId) return;
-    dao.unenrollUserFromCourse(userId, req.params.courseId);
-    res.sendStatus(200);
+  const unenrollUserFromCourse = async (req, res) => {
+    const uid = resolveUserId(req, res);
+    if (!uid) return;
+    const status = await dao.unenrollUserFromCourse(uid, req.params.cid);
+    res.send(status);
   };
-  const findUsersForCourse = (req, res) => {
-    res.json(dao.findUsersForCourse(req.params.courseId));
+  const findUsersForCourse = async (req, res) => {
+    const users = await dao.findUsersForCourse(req.params.cid);
+    res.json(users);
   };
-  app.post("/api/users/:userId/courses/:courseId", enroll);
-  app.delete("/api/users/:userId/courses/:courseId", unenroll);
-  app.get("/api/courses/:courseId/users", findUsersForCourse);
+  app.post("/api/users/:uid/courses/:cid", enrollUserInCourse);
+  app.delete("/api/users/:uid/courses/:cid", unenrollUserFromCourse);
+  app.get("/api/courses/:cid/users", findUsersForCourse);
 }
